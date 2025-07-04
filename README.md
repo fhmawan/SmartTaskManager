@@ -80,13 +80,11 @@ Variable	Description	Example
 MONGO_URI	MongoDB connection string	mongodb://localhost:27017/taskmanager
 JWT_SECRET	Secret for JWT tokens	your_strong_secret
 JWT_EXPIRE	Token expiration	30d
-Screenshots 🖼️
-(Add your application screenshots here)
 
 License 📄
 MIT License - see LICENSE for details.
 
-Built with ❤️ by Your Name
+Built with ❤️ by Faheem
 
 text
 
