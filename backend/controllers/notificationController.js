@@ -79,38 +79,67 @@ exports.deleteNotification = async (req, res, next) => {
 exports.checkTaskNotifications = async (userId) => {
   try {
     const now = new Date();
-    const threshold = new Date(now.getTime() + 30 * 60000); // 30 minutes from now
-
+    
+    // Convert to your local timezone (UTC+5)
+    const localNow = new Date(now.getTime() + (5 * 60 * 60 * 1000));
+    
+    
+    // Find tasks that are not completed and have reminders
     const tasks = await Task.find({
       user: userId,
-      dueDate: { $lte: threshold, $gte: now },
       status: { $ne: 'completed' },
-      'reminders.sent': false
+      $and: [
+        { reminders: { $exists: true } },
+        { reminders: { $ne: [] } }
+      ]
     });
+    
+    let notificationsCreated = 0;
 
-    await Promise.all(tasks.map(async (task) => {
-      // Create notification
-      await Notification.create({
-        user: userId,
-        title: 'Task Reminder',
-        message: `${task.title} is due soon`,
-        type: 'reminder',
-        relatedTask: task._id,
-        metadata: {
-          dueDate: task.dueDate,
-          priority: task.priority
+    for (const task of tasks) {
+      let taskUpdated = false;
+      
+
+      for (let i = 0; i < task.reminders.length; i++) {
+
+        const reminder = task.reminders[i];
+        const reminderLocalTime = new Date(reminder.time.getTime() + (5 * 60 * 60 * 1000));
+
+        console.log(reminderLocalTime, localNow, reminder.sent);
+        if (reminderLocalTime <= localNow && !reminder.sent) {
+          console.log(`🚨 Creating notification for task: ${task.title} (reminder time: ${reminderLocalTime.toISOString()})`);
+          
+          await Notification.create({
+            user: userId,
+            title: 'Task Reminder',
+            message: `${task.title} reminder`,
+            type: 'reminder',
+            relatedTask: task._id,
+            metadata: {
+              dueDate: task.dueDate,
+              priority: task.priority,
+              reminderTime: reminder.time,
+              localReminderTime: reminderLocalTime
+            }
+          });
+
+          // Mark this reminder as sent
+          task.reminders[i].sent = true;
+          taskUpdated = true;
+          notificationsCreated++;
         }
-      });
-
-      // Update reminders
-      task.reminders = task.reminders.map(reminder => ({
-        ...reminder,
-        sent: reminder.sent || reminder.time <= threshold
-      }));
-
-      await task.save();
-    }));
+      }
+      
+      // Save task if any reminder was marked as sent
+      if (taskUpdated) {
+        await task.save();
+        console.log(`✅ Updated task reminders for: ${task.title}`);
+      }
+    }
+    
+    console.log(`📨 Created ${notificationsCreated} notifications for user ${userId}`);
+    
   } catch (err) {
-    console.error('Error checking task notifications:', err);
+    console.error('❌ Error checking task notifications:', err);
   }
 };

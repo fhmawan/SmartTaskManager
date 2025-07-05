@@ -30,7 +30,7 @@ router.post(
   }
 );
 
-// Protected route
+// Protected route - Get current user
 router.get(
   '/me',
   (req, res, next) => {
@@ -39,6 +39,37 @@ router.get(
   },
   (req, res, next) => {
     authController.getMe(req, res, next);
+  }
+);
+
+// Change password route
+router.put(
+  '/change-password',
+  [
+    check('currentPassword', 'Current password is required').notEmpty(),
+    check('newPassword', 'New password must be 6+ chars').isLength({ min: 6 })
+  ],
+  (req, res, next) => {
+    console.log('Change password route hit');
+    auth(req, res, next);
+  },
+  (req, res, next) => {
+    authController.changePassword(req, res, next);
+  }
+);
+
+// Delete account route
+router.delete(
+  '/delete-account',
+  [
+    check('password', 'Password is required').notEmpty()
+  ],
+  (req, res, next) => {
+    console.log('Delete account route hit');
+    auth(req, res, next);
+  },
+  (req, res, next) => {
+    authController.deleteAccount(req, res, next);
   }
 );
 

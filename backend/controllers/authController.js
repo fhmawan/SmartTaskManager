@@ -95,6 +95,8 @@ exports.login = async (req, res, next) => {
       // Update last login
       user.lastLogin = Date.now();
       await user.save();
+
+      console.log('User logged in:', user);
   
       sendTokenResponse(user, 200, res);
   
@@ -123,6 +125,89 @@ exports.getMe = async (req, res, next) => {
   }
 };
 
+// Change Password
+exports.changePassword = async (req, res, next) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+
+    // Validate input
+    if (!currentPassword || !newPassword) {
+      return next(new ErrorResponse('Please provide current password and new password', 400));
+    }
+
+    // Validate new password strength
+    if (newPassword.length < 6) {
+      return next(new ErrorResponse('New password must be at least 6 characters', 400));
+    }
+
+    // Get user with password field
+    const user = await User.findById(req.user.id).select('+password');
+
+    if (!user) {
+      return next(new ErrorResponse('User not found', 404));
+    }
+
+    // Check current password
+    const isMatch = await user.matchPassword(currentPassword);
+    if (!isMatch) {
+      return next(new ErrorResponse('Current password is incorrect', 401));
+    }
+
+    // Update password
+    user.password = newPassword;
+    await user.save();
+
+    res.status(200).json({
+      success: true,
+      message: 'Password updated successfully'
+    });
+
+  } catch (err) {
+    console.error('Change password error:', err);
+    next(new ErrorResponse('Password change failed. Please try again.', 500));
+  }
+};
+
+// Delete Account
+exports.deleteAccount = async (req, res, next) => {
+  try {
+    const { password } = req.body;
+
+    // Validate input
+    if (!password) {
+      return next(new ErrorResponse('Please provide your password to confirm account deletion', 400));
+    }
+
+    // Get user with password field
+    const user = await User.findById(req.user.id).select('+password');
+
+    if (!user) {
+      return next(new ErrorResponse('User not found', 404));
+    }
+
+    // Verify password
+    const isMatch = await user.matchPassword(password);
+    if (!isMatch) {
+      return next(new ErrorResponse('Password is incorrect', 401));
+    }
+
+    // Delete user account
+    await User.findByIdAndDelete(req.user.id);
+
+    // Clear cookie
+    res.clearCookie('token');
+
+    res.status(200).json({
+      success: true,
+      message: 'Account deleted successfully'
+    });
+
+  } catch (err) {
+    console.error('Delete account error:', err);
+    next(new ErrorResponse('Account deletion failed. Please try again.', 500));
+  }
+};
+
 const sendTokenResponse = (user, statusCode, res) => {
     try {
       const token = user.getSignedJwtToken();
@@ -135,13 +220,24 @@ const sendTokenResponse = (user, statusCode, res) => {
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'strict'
       };
+
+      // Prepare user data without sensitive information
+      const userData = {
+        id: user._id,
+        username: user.username,
+        email: user.email,
+        name: user.name,
+        createdAt: user.createdAt,
+        lastLogin: user.lastLogin
+      };
   
       res
         .status(statusCode)
         .cookie('token', token, options)
         .json({
           success: true,
-          token
+          token,
+          user: userData
         });
   
     } catch (err) {
