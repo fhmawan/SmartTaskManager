@@ -85,23 +85,3 @@ License 📄
 MIT License - see LICENSE for details.
 
 Built with ❤️ by Faheem
-
-text
-
-Key features of this README:
-1. Clean, modern layout with badges
-2. Essential sections without being overwhelming
-3. Clear installation instructions
-4. Concise API documentation
-5. Visual project structure
-6. Environment variables reference
-7. License information
-
-To use this:
-1. Copy the entire content
-2. Create a new `README.md` file in your project root
-3. Paste the content
-4. Replace placeholders (yourusername, add screenshots)
-5. Customize any sections as needed
-
-Would you like me to add any specific details about the frontend components or expand any section?
