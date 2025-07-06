@@ -70,7 +70,6 @@ exports.deleteCategory = async (req, res, next) => {
     if (category.user.toString() !== req.user.id) {
       return next(new ErrorResponse(`Not authorized to delete this category`, 401));
     }
-
     const tasksWithCategory = await Task.countDocuments({ 
       category: req.params.id,
       user: req.user.id
@@ -78,17 +77,19 @@ exports.deleteCategory = async (req, res, next) => {
 
     if (tasksWithCategory > 0) {
       return next(new ErrorResponse(
-        `Cannot delete category with ${tasksWithCategory} associated tasks`, 
+        `Cannot delete category. It has ${tasksWithCategory} associated tasks. Please reassign or delete these tasks first.`, 
         400
       ));
     }
 
-    await category.remove();
+    await Category.findByIdAndDelete(req.params.id);
 
     res.status(200).json({
       success: true,
-      data: {}
+      data: {},
+      message: 'Category deleted successfully'
     });
+
   } catch (err) {
     next(err);
   }

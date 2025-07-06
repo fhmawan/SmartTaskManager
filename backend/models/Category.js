@@ -45,12 +45,13 @@ categorySchema.virtual('taskCount', {
   count: true
 });
 
-// Pre-remove hook to handle category deletion
-categorySchema.pre('remove', async function(next) {
+// Updated pre-delete hook using newer Mongoose methods
+categorySchema.pre('findOneAndDelete', async function(next) {
   try {
-    // Update all tasks with this category to null
+    const categoryId = this.getQuery()['_id'];
+    // Update all tasks with this category to remove the category field
     await mongoose.model('Task').updateMany(
-      { category: this._id },
+      { category: categoryId },
       { $unset: { category: 1 } }
     );
     next();
