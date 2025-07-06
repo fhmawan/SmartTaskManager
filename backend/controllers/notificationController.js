@@ -74,7 +74,7 @@ exports.deleteNotification = async (req, res, next) => {
   }
 };
 
-// @desc    Check for task reminders
+// @desc    Check for task reminders, overdue tasks, and tasks due soon
 // @route   INTERNAL
 exports.checkTaskNotifications = async (userId) => {
   try {
@@ -82,16 +82,13 @@ exports.checkTaskNotifications = async (userId) => {
     
     // Convert to your local timezone (UTC+5)
     const localNow = new Date(now.getTime() + (5 * 60 * 60 * 1000));
+    const oneHourFromNow = new Date(localNow.getTime() + (60 * 60 * 1000));
     
-    
-    // Find tasks that are not completed and have reminders
+    // Find tasks that are not completed and archived
     const tasks = await Task.find({
       user: userId,
-      status: { $ne: 'completed' },
-      $and: [
-        { reminders: { $exists: true } },
-        { reminders: { $ne: [] } }
-      ]
+      status: { $nin: ['completed', 'archived'] },
+      dueDate: { $exists: true, $ne: null }
     });
     
     let notificationsCreated = 0;
@@ -99,33 +96,125 @@ exports.checkTaskNotifications = async (userId) => {
     for (const task of tasks) {
       let taskUpdated = false;
       
+      // Check existing reminders
+      if (task.reminders && task.reminders.length > 0) {
+        for (let i = 0; i < task.reminders.length; i++) {
+          const reminder = task.reminders[i];
+          const reminderLocalTime = new Date(reminder.time.getTime() + (5 * 60 * 60 * 1000));
 
-      for (let i = 0; i < task.reminders.length; i++) {
+          console.log(reminderLocalTime, localNow, reminder.sent);
+          if (reminderLocalTime <= localNow && !reminder.sent) {
+            console.log(`🚨 Creating notification for task: ${task.title} (reminder time: ${reminderLocalTime.toISOString()})`);
+            
+            await Notification.create({
+              user: userId,
+              title: 'Task Reminder',
+              message: `${task.title} reminder`,
+              type: 'reminder',
+              relatedTask: task._id,
+              metadata: {
+                dueDate: task.dueDate,
+                priority: task.priority,
+                reminderTime: reminder.time,
+                localReminderTime: reminderLocalTime
+              }
+            });
 
-        const reminder = task.reminders[i];
-        const reminderLocalTime = new Date(reminder.time.getTime() + (5 * 60 * 60 * 1000));
+            // Mark this reminder as sent
+            task.reminders[i].sent = true;
+            taskUpdated = true;
+            notificationsCreated++;
+          }
+        }
+      }
+      
+      // Check for overdue tasks
+      const taskDueLocalTime = new Date(task.dueDate.getTime() + (5 * 60 * 60 * 1000));
+      
+      if (taskDueLocalTime < localNow) {
+        // Check if we already sent an overdue notification
+        const existingOverdueNotification = await Notification.findOne({
+          user: userId,
+          relatedTask: task._id,
+          type: 'overdue',
+          createdAt: { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) } // Within last 24 hours
+        });
 
-        console.log(reminderLocalTime, localNow, reminder.sent);
-        if (reminderLocalTime <= localNow && !reminder.sent) {
-          console.log(`🚨 Creating notification for task: ${task.title} (reminder time: ${reminderLocalTime.toISOString()})`);
+        if (!existingOverdueNotification) {
+          console.log(`⏰ Creating overdue notification for task: ${task.title}`);
+          
+          const hoursOverdue = Math.floor((localNow - taskDueLocalTime) / (1000 * 60 * 60));
+          const daysOverdue = Math.floor(hoursOverdue / 24);
+          
+          let overdueMessage;
+          if (daysOverdue > 0) {
+            overdueMessage = `"${task.title}" is ${daysOverdue} day${daysOverdue > 1 ? 's' : ''} overdue`;
+          } else {
+            overdueMessage = `"${task.title}" is ${hoursOverdue} hour${hoursOverdue > 1 ? 's' : ''} overdue`;
+          }
           
           await Notification.create({
             user: userId,
-            title: 'Task Reminder',
-            message: `${task.title} reminder`,
-            type: 'reminder',
+            title: 'Task Overdue',
+            message: overdueMessage,
+            type: 'overdue',
             relatedTask: task._id,
             metadata: {
               dueDate: task.dueDate,
               priority: task.priority,
-              reminderTime: reminder.time,
-              localReminderTime: reminderLocalTime
+              hoursOverdue: hoursOverdue,
+              daysOverdue: daysOverdue,
+              localDueTime: taskDueLocalTime
             }
           });
 
-          // Mark this reminder as sent
-          task.reminders[i].sent = true;
-          taskUpdated = true;
+          notificationsCreated++;
+        }
+      }
+      
+      // Check for tasks due within 1 hour
+      else if (taskDueLocalTime > localNow && taskDueLocalTime <= oneHourFromNow) {
+        // Check if we already sent a due soon notification
+        const existingDueSoonNotification = await Notification.findOne({
+          user: userId,
+          relatedTask: task._id,
+          type: 'due_soon',
+          createdAt: { $gte: new Date(Date.now() - 2 * 60 * 60 * 1000) } // Within last 2 hours
+        });
+
+        if (!existingDueSoonNotification) {
+          console.log(`⏳ Creating due soon notification for task: ${task.title}`);
+          
+          const minutesRemaining = Math.floor((taskDueLocalTime - localNow) / (1000 * 60));
+          
+          let dueSoonMessage;
+          if (minutesRemaining <= 5) {
+            dueSoonMessage = `"${task.title}" is due in ${minutesRemaining} minute${minutesRemaining > 1 ? 's' : ''}`;
+          } else {
+            const hoursRemaining = Math.floor(minutesRemaining / 60);
+            const remainingMinutes = minutesRemaining % 60;
+            
+            if (hoursRemaining > 0) {
+              dueSoonMessage = `"${task.title}" is due in ${hoursRemaining}h ${remainingMinutes}m`;
+            } else {
+              dueSoonMessage = `"${task.title}" is due in ${minutesRemaining} minutes`;
+            }
+          }
+          
+          await Notification.create({
+            user: userId,
+            title: 'Task Due Soon',
+            message: dueSoonMessage,
+            type: 'due_soon',
+            relatedTask: task._id,
+            metadata: {
+              dueDate: task.dueDate,
+              priority: task.priority,
+              minutesRemaining: minutesRemaining,
+              localDueTime: taskDueLocalTime
+            }
+          });
+
           notificationsCreated++;
         }
       }

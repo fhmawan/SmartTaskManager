@@ -20,7 +20,7 @@ const notificationSchema = new mongoose.Schema({
   },
   type: {
     type: String,
-    enum: ['reminder', 'system', 'update'],
+    enum: ['reminder', 'system', 'update', 'overdue', 'due_soon'],
     required: true
   },
   relatedTask: {

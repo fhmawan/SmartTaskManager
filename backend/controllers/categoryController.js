@@ -2,9 +2,6 @@ const Category = require('../models/Category');
 const Task = require('../models/Task');
 const ErrorResponse = require('../utils/errorResponse');
 
-// @desc    Get all categories
-// @route   GET /api/categories
-// @access  Private
 exports.getCategories = async (req, res, next) => {
   try {
     const categories = await Category.find({ user: req.user.id });
@@ -19,9 +16,6 @@ exports.getCategories = async (req, res, next) => {
   }
 };
 
-// @desc    Create category
-// @route   POST /api/categories
-// @access  Private
 exports.createCategory = async (req, res, next) => {
   try {
     req.body.user = req.user.id;
@@ -36,9 +30,6 @@ exports.createCategory = async (req, res, next) => {
   }
 };
 
-// @desc    Update category
-// @route   PUT /api/categories/:id
-// @access  Private
 exports.updateCategory = async (req, res, next) => {
   try {
     let category = await Category.findById(req.params.id);

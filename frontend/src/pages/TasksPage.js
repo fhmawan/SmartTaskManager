@@ -262,7 +262,7 @@ const TasksPage = () => {
   }
 
   return (
-    <Box sx={{ height: '100vh', overflow: 'auto', display: 'flex', flexDirection: 'column' }}>
+    <Box sx={{ display: 'flex', flexDirection: 'column' }}>
       {/* Header */}
       <Box sx={{ 
         p: 3, 
@@ -689,10 +689,8 @@ const TasksPage = () => {
         </Fade>
       </Box>
 
-      {/* Main Content - Ensure full width usage */}
-      {/* Main Content - Single Scroll */}
+      {/* Main Content */}
       <Box sx={{ 
-        flex: 1, 
         p: 3,
       }}>
         {/* Status Tabs - Just above tasks */}
@@ -851,7 +849,7 @@ const TasksPage = () => {
       <Zoom in timeout={1200}>
         <Fab
           color="primary"
-          onClick={() => navigate('/add-task')}
+          onClick={() => navigate('/tasks/new')}
           sx={{
             position: 'fixed',
             bottom: 24,

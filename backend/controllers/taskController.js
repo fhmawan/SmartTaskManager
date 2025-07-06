@@ -26,10 +26,8 @@ exports.getTasks = async (req, res, next) => {
 // @access  Private
 exports.createTask = async (req, res, next) => {
   try {
-    // Add user to req.body
     req.body.user = req.user.id;
 
-    // Check if category exists and belongs to user
     const category = await Category.findOne({
       _id: req.body.category,
       user: req.user.id
