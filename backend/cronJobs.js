@@ -23,31 +23,6 @@ const initializeCronJobs = () => {
       console.error('❌ Error checking notifications:', error);
     }
   });
-
-  // Optional: Daily cleanup job (runs every day at 2 AM)
-  cron.schedule('0 2 * * *', async () => {
-    console.log('🧹 Running daily cleanup...');
-    try {
-      // You can add cleanup logic here later
-      // For example: Delete old notifications, clean up expired sessions, etc.
-      console.log('✅ Daily cleanup completed');
-    } catch (error) {
-      console.error('❌ Error during daily cleanup:', error);
-    }
-  });
-
-  // Optional: Weekly summary job (runs every Sunday at 9 AM)
-  cron.schedule('0 9 * * 0', async () => {
-    console.log('📊 Generating weekly summaries...');
-    try {
-      // You can add weekly summary logic here later
-      // For example: Generate weekly task completion reports
-      console.log('✅ Weekly summary generation completed');
-    } catch (error) {
-      console.error('❌ Error generating weekly summaries:', error);
-    }
-  });
-
   console.log('✅ All cron jobs initialized successfully');
 };
 
